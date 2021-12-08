@@ -1,3 +1,5 @@
+# import shiny for web front end, lidR for lidar processing functionalities
+# and rgl for raster/3D graphics
 library(shiny)
 library(lidR)
 library(rgl)
@@ -5,9 +7,10 @@ library(rgl)
 # maximum file size upload is 10 Gigs (10000*1024^2)
 options(shiny.maxRequestSize = 10000*1024^2)
 
+# shiny convenience wrapper for browser front end
 ui <- fluidPage(
   
-  # we need a name
+  # Page title (essentially <h1> in browser)
   titlePanel("Lumberhack"),
   
   
@@ -50,6 +53,7 @@ server <- function(input, output) {
   })
   
   # render drop down for files that have been uploaded
+  # multiple files may be uploaded
   output$file_selector <- renderUI({
     files <- c(input$f$name)
     selectInput('file_selector',
@@ -63,14 +67,19 @@ server <- function(input, output) {
   plot_reactive <- eventReactive(input$submit, {
     
     # uses readLAS on user input
+      # readLAS parses into lidR-defined objects, which can be presented in plots
+      # see documentation for possible parameters
     las <- readLAS(input$file_selector)
     print(las)
+    
+    # render the 3-D lidar visualization
     lidR::plot(las)
     rglwidget()
   })
   
   
-  # render WebGL for 3dplot
+  # render WebGL widget window, then call above plot_reactive to render
+  # the lidar visualization
   output$plot <- renderRglwidget({
     rgl.open(useNULL=TRUE)
     evn = parent.frame()
