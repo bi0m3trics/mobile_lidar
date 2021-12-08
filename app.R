@@ -20,7 +20,7 @@ ui <- fluidPage(
     sidebarPanel(
       
       # file input
-      fileInput( inputId = "f",
+      fileInput( inputId = "fileIn",
                  label = "Choose .las or .laz file (max file size is 10 GB)",
                  accept = c(".laz", ".laz"),
                  multiple = TRUE),
@@ -47,15 +47,15 @@ server <- function(input, output) {
   # render a table showing:
   # file name, size, a type and path 
   output$table <- renderTable({ 
-    req(input$f)
-    input$f
+    req(input$fileIn)
+    input$fileIn
     
   })
   
   # render drop down for files that have been uploaded
   # multiple files may be uploaded
   output$file_selector <- renderUI({
-    files <- c(input$f$name)
+    files <- c(input$fileIn$name)
     selectInput('file_selector',
                 label = 'Select File (After Upload)',
                 choices = files)
