@@ -22,7 +22,7 @@ ui <- fluidPage(
       # file input
       fileInput( inputId = "fileIn",
                  label = "Choose .las or .laz file (max file size is 10 GB)",
-                 accept = c(".laz", ".laz"),
+                 accept = c(".laz", ".las"),
                  multiple = TRUE),
       
       uiOutput('file_selector'),
