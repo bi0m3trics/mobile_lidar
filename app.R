@@ -85,8 +85,21 @@ server <- function(input, output) {
     las <- readLAS(input$file_selector)
     summary(las)
     
+    # if dataset is 'clean', artificial outliers will be added
+    set.seed(314)
+    id = round(runif(20, 0, npoints(las)))
+    set.seed(42)
+    err = runif(20, -50, 50)
+    las$Z[id] = las$Z[id] + err
+    
     # classify noise using SOR algorithm
     las <- classify_noise(las, sor(15,7))
+    
+    # plot
+    (las, color = "Classification")
+    
+    # use IVF algorithm 
+    las <- classify_noise(las, ivf(5, 2))
 
     # Remove outliers using filter_poi()
     las_denoise <- filter_poi(las, Classification != LASNOISE)
