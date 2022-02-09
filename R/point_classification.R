@@ -11,7 +11,7 @@ las <- classify_ground(las, pmf(ws, th))
 # if wanting to plot
 # plot(las, color = "Classification")
 
-# use cloth simulation filter ; separates point clouds into ground and non-ground measurments 
+# use cloth simulation filter ; separates point clouds into ground and non-ground measurements 
 # these parameters are also for speed
 mycsf <- csf(TRUE, 1, 1, time_step = 1)
 las <- classify_ground(las, mycsf)
