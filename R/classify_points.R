@@ -1,4 +1,4 @@
-# classify ground function
+# CLASSIFY GROUND 
 
 # use progressive morphological filter
 # these parameters are for speed 
