@@ -20,7 +20,7 @@ las <- classify_ground(las, mycsf)
 # plot(las, color = "Classification")
 
 ## CLASSIFY CROWN ##
-## NEEDS WORK ## 
+# NEEDS WORK 
 
 # using k-means cluster for individual tree detection
 # set xyz coordinates and subset the data
