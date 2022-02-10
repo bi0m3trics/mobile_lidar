@@ -100,7 +100,7 @@ server <- function(input, output) {
     # plot
     # (las, color = "Classification")
     
-    # use IVF algorithm 
+    # classify noise using IVF algorithm 
     las <- classify_noise(las, ivf(5, 2))
 
     # Remove outliers using filter_poi()
