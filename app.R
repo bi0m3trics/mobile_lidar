@@ -80,31 +80,17 @@ server <- function(input, output) {
     showModal(modalDialog("Cleaning data..."))
     
     # uses readLAS on user input
-    # readLAS parses into lidR-defined objects, which can be presented in plots
+    # readTLSLAS parses into lidR-defined objects, which can be presented in plots
     # see documentation for possible parameters
-    las <- readLAS(input$file_selector)
-    summary(las)
+    las <- readTLSLAS(input$file_selector, filter = "-thin_with_voxel 0.1")
     
-    # if dataset is 'clean', artificial outliers will be added
-    set.seed(314)
-    id = round(runif(20, 0, npoints(las)))
-    set.seed(42)
-    err = runif(20, -50, 50)
-    las$Z[id] = las$Z[id] + err
-    
-    # classify noise using SOR algorithm
-    las <- classify_noise(las, sor(15,7))
-    
-    # plot
-    (las, color = "Classification")
-    
-    # classify noise using IVF algorithm 
-    las <- classify_noise(las, ivf(5, 2))
+    # classify noise using IVF algorithm ivf with 1 meter voxel, 3 points near
+    las <- classify_noise(las, ivf(1, 3))
 
     # Remove outliers using filter_poi()
-    las_denoise <- filter_poi(las, Classification != LASNOISE)
+    las <<- filter_poi(las, Classification != LASNOISE)
     
-    summary(las_denoise)
+    summary(las)
     removeModal()
    
   })
@@ -121,12 +107,7 @@ server <- function(input, output) {
   # use the file that is selected from the drop down
   # create plot when submit button is pressed
   plot_reactive <- eventReactive(input$btn_draw_point_cloud, {
-    rgl.open(useNULL=T)
-    
-    las = readLAS(input$file_selector)
-    
-    las2 = voxelize_points(las, 0.5)
-    plot(las2)
+    plot(las)
     rglwidget()
     
   })
