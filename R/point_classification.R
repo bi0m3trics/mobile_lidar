@@ -1,20 +1,23 @@
 ## CLASSIFY GROUND ## 
 
-# use progressive morphological filter ; detects non-ground LIDAR measurements
-# these parameters are for speed 
-ws <- seq(3, 12, 4)
-th <- seq(0.1, 1.5, length.out = length(ws))
-
-# using classify_ground function from LiDR package
-las <- classify_ground(las, pmf(ws, th))
-
-# if wanting to plot
-# plot(las, color = "Classification")
-
 # use cloth simulation filter ; separates point clouds into ground and non-ground measurements 
-# these parameters are also for speed
-mycsf <- csf(TRUE, 1, 1, time_step = 1)
+mycsf <- csf(
+          sloop_smooth = FALSE,
+          class_threshold = 0.1,
+          cloth_resolution = 0.1,
+          rigidness = 1L, 
+          iterations = 500L,
+          time_step = 0.65)
+
+# classify ground
 las <- classify_ground(las, mycsf)
+
+# normalize height with tin
+las <- normalize_height(las, tin())
+
+# decimate points
+# filters point cloud by randomly selecting n points with each voxel
+thinned <- decimate_points(las, random_per_voxel(1, 1))
 
 # if wanting to plot
 # plot(las, color = "Classification")
