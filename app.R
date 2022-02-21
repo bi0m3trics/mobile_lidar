@@ -158,7 +158,7 @@ server <- function(input, output) {
         
         
         # segment the point cloud 
-        myTreeGraph = segment_graph(las = las, tree.locations = myTreeLocs, k = 50, 
+        myTreeGraph <- segment_graph(las = las, tree.locations = myTreeLocs, k = 50, 
                                     distance.threshold = 0.5,
                                     use.metabolic.scale = FALSE, 
                                     subsample.graph = 0.1, 
