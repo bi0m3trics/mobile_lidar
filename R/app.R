@@ -5,6 +5,7 @@ library(lidR)
 library(rgl)
 library(spanner)
 library(dplyr)
+library(Rcpp)
 
 
 app <- function(...){
@@ -233,6 +234,11 @@ app <- function(...){
 
       # plot the slice
       lidR::plot(las_slice, color="treeID")
+
+
+      # test cpp function "ransac" (just returns df for now)
+      print(rcpp_ransac(las_slice_data))
+
       rglwidget()
 
     })
