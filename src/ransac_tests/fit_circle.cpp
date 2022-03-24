@@ -33,13 +33,6 @@ int main(int argc, char ** argv) {
     // parse points into array
     char points_as_strings[num_points][30];
 
-        // initialize to all '\0' for proper termination
-        for (int i = 0; i < num_points; i++) {
-            for (int j=0; j < 30; j++) {
-                points_as_strings[i][j] = '\0';
-            }
-        }
-
     points_file >> line; // skip the header
     line_counter = 0;
     while(points_file >> points_as_strings[line_counter]) {
@@ -82,23 +75,23 @@ int main(int argc, char ** argv) {
     gen.seed( time(NULL) ); 
 
     // create a uniform distribution 
-    uniform_int_distribution<int> uniform_dist(0, num_points);
+    uniform_int_distribution<int> uniform_dist(0, num_points - 1);
 
     // RANSAC
     int ransac_iterations = atoi(argv[1]);
     int best_count = 0;
-    Circle * best_circle;
+    Circle * current_circle = NULL;
+    Circle * best_circle = NULL;
     for (int i = 0; i < ransac_iterations; i++) {
 
         // randomly select three points from the points array
         Point * selected_points[3];
-        for (int i=0; i < 3; i++) {
+        for (int j=0; j < 3; j++) {
             int random_index = uniform_dist(gen);
-            selected_points[i] = points[random_index];
+            selected_points[j] = points[random_index];
         }
-        
-        // find the circle through the three points
-        Circle * current_circle;
+
+        // find the circle through the three points    
         current_circle = find_circle(selected_points[0], 
                                      selected_points[1],
                                      selected_points[2]);
@@ -115,6 +108,9 @@ int main(int argc, char ** argv) {
         if (current_count > best_count) {
             best_count = current_count;
             best_circle = current_circle;
+        }
+        else {
+            delete current_circle;
         }
 
     }
@@ -178,7 +174,6 @@ Circle * find_circle(Point * first, Point * second, Point * third) {
     first_mid.y = (first->y + second->y) / 2;
     second_mid.x = (first->x + third->x) / 2;
     second_mid.y = (first->y + third->y) / 2;
-
     // find intersection of two perpendicular lines 
     Point intersection;
 
@@ -194,7 +189,6 @@ Circle * find_circle(Point * first, Point * second, Point * third) {
 
         // solve for y
         intersection.y = first_perp_slope * intersection.x + first_perp_intercept;
-
     // find radius of circle
     float radius = sqrt( pow(intersection.x - first->x, 2) + 
                          pow(intersection.y - first->y, 2) );
