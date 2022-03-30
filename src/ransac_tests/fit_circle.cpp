@@ -8,77 +8,17 @@
 
 using namespace std;
 
-int main(int argc, char ** argv) {
-
-    if (argc != 2) {
-        cout << "Expecting ransac iterations as command line arg." << endl;
-        exit(-1);
-    }
-
-    ifstream points_file;
-    points_file.open("generated_points.csv");
-
-    // count number of points
-    int line_counter = 0;
-    char line[30];
-    while(points_file >> line) {
-        line_counter++;
-    }
-    int num_points = line_counter - 1; // header line is not a point
-    
-    // reopen the file
-    points_file.close();
-    points_file.open("generated_points.csv");
-
-    // parse points into array
-    char points_as_strings[num_points][30];
-
-    points_file >> line; // skip the header
-    line_counter = 0;
-    while(points_file >> points_as_strings[line_counter]) {
-        line_counter++;
-    }
-
-    // convert to array of points
-    Point * points[num_points];
-    char temp_str_x[15];
-    char temp_str_y[15];
-    for (int i = 0; i < num_points; i++) {
-   
-        // parse csv values of each point
-        int j = 0;
-        while (points_as_strings[i][j] != ',') {
-            temp_str_x[j] = points_as_strings[i][j];
-            j++;
-        }
-        temp_str_x[j] = '\0';
-
-        j++; // move past ","
-        int k = 0;
-        while (points_as_strings[i][j] != '\0') {
-            temp_str_y[k] = points_as_strings[i][j];
-            k++;
-            j++;
-        }
-        temp_str_y[k] = '\0';
-
-        // create new point struct and add to array
-        Point * current_point = new Point;
-        current_point->x = stof(temp_str_x);
-        current_point->y = stof(temp_str_y);
-        
-        points[i] = current_point;
-    }
+int perform_ransac(vector<Point *> points, int iterations) {
 
     // create the random number generator and seed it
     default_random_engine gen;
     gen.seed( time(NULL) ); 
 
     // create a uniform distribution 
-    uniform_int_distribution<int> uniform_dist(0, num_points - 1);
+    uniform_int_distribution<int> uniform_dist(0, points.size() - 1);
 
     // RANSAC
-    int ransac_iterations = atoi(argv[1]);
+    int ransac_iterations = iterations;
     int best_count = 0;
     Circle * current_circle = NULL;
     Circle * best_circle = NULL;
@@ -102,7 +42,7 @@ int main(int argc, char ** argv) {
             }
         
         // perform ransac with the circle and all points
-        int current_count = ransac_circle(current_circle, points, num_points, 0.01);
+        int current_count = ransac_circle(current_circle, points, 0.01);
 
         // update the best result if current result is better
         if (current_count > best_count) {
@@ -122,11 +62,11 @@ int main(int argc, char ** argv) {
 }
 
 
-int ransac_circle(Circle * circle, Point ** points, int num_points, float offset) {
+int ransac_circle(Circle * circle, vector <Point *> points, float offset) {
 
     float distance;
     int in_range_count = 0;
-    for (int i = 0; i < num_points; i++) {
+    for (int i = 0; i < points.size(); i++) {
         distance =  sqrt( pow(circle->x - points[i]->x, 2) + 
                           pow(circle->y - points[i]->y, 2) );
 
@@ -148,7 +88,6 @@ Circle * find_circle(Point * first, Point * second, Point * third) {
         // ensure no division by zero
         if (first->x - second->x == 0 || first->x - third->x == 0 ||
             second->x - third->x == 0 ) {
-            cout << "Division by zero" << endl;
             return NULL;
         }
 
@@ -158,13 +97,11 @@ Circle * find_circle(Point * first, Point * second, Point * third) {
 
     // check for colinearity
     if (first_slope == second_slope && second_slope == third_slope) {
-        cout << "Points colinear" << endl;
         return NULL;
     }
 
     // ensure no zero slopes
     if (abs(first_slope) == 0 || abs(second_slope) == 0) {
-        cout << "Division by zero" << endl;
         return NULL;
     }
 

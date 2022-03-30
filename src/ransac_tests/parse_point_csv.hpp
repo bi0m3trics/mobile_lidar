@@ -16,7 +16,7 @@ struct Point {
  * @param filename - path to csv file to be parsed
  * @return Point** - array of pointers to parsed points
  */
-Point ** parse_points(char * filename);
+std::vector<Point *> parse_points(char * filename);
 
 /**
  * @brief - Get the next comma separated value from line

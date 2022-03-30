@@ -5,13 +5,13 @@
 
 using namespace std;
 
-Point ** subset_points_by_tree_id(Point ** points, int tree_id);
+vector<Point *> subset_points_by_tree_id(vector<Point *> points, int tree_id);
 
 
-Point ** subset_points_within_z_range(Point** points, float lower, float upper);
+vector<Point *> subset_points_within_z_range(vector<Point *> points, float lower, float upper);
 
 
-vector<int> get_tree_ids(Point ** points);
+vector<int> get_tree_ids(vector<Point *> points);
 
 
 #endif
