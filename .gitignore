@@ -3,3 +3,6 @@
 *.out
 *.temp
 .Rproj*
+*.csv
+*.json
+.DS_Store
