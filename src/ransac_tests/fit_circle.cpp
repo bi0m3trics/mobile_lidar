@@ -1,86 +1,181 @@
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include <random>
 #include <time.h>
 #include <math.h>
+#include <limits>
 
 #include "fit_circle.hpp"
+#include "segment_points.hpp"
 
 using namespace std;
 
-int perform_ransac(vector<Point *> points, int iterations) {
+Cylinder * perform_ransac(vector<Point *> points, int iterations) {
 
-    // create the random number generator and seed it
-    default_random_engine gen;
-    gen.seed( time(NULL) ); 
+    // prep the normal distribution
 
-    // create a uniform distribution 
-    uniform_int_distribution<int> uniform_dist(0, points.size() - 1);
+        // create the random number generator
+        default_random_engine gen;
+         
+        // normal distribution to model x and y angles of cylinder
+        normal_distribution<float> normal_dist(0, 5);
 
-    // RANSAC
-    int ransac_iterations = iterations;
-    int best_count = 0;
-    Circle * current_circle = NULL;
-    Circle * best_circle = NULL;
-    for (int i = 0; i < ransac_iterations; i++) {
+    // ---
 
-        // randomly select three points from the points array
-        Point * selected_points[3];
-        for (int j=0; j < 3; j++) {
-            int random_index = uniform_dist(gen);
-            selected_points[j] = points[random_index];
-        }
+    // RANSAC initial circle
+    double best_squared_sum = numeric_limits<double>::max();
+    double current_squared_sum;
+    Circle * current_circle;
+    Circle * best_circle = new Circle;
+    for (int i = 0; i < iterations; i++) {
 
-        // find the circle through the three points    
-        current_circle = find_circle(selected_points[0], 
-                                     selected_points[1],
-                                     selected_points[2]);
+        // seed the random generator
+        gen.seed( time(NULL) + i );
+
+        // find a circle through three random points  
+        vector<Point *> three_points = get_three_random_points(points, gen);
+        current_circle = find_circle(three_points);
 
             // skip iteration if circle finding was unsuccessful
+            // (skips zero division)
             if (current_circle == NULL) {
                 continue;
             }
         
-        // perform ransac with the circle and all points
-        int current_count = ransac_circle(current_circle, points, 0.01);
+        // ransac the circle
+        current_squared_sum = ransac_circle(points, current_circle);
 
-        // update the best result if current result is better
-        if (current_count > best_count) {
-            best_count = current_count;
+        // keep only best circle
+        if (current_squared_sum < best_squared_sum) {
+            best_squared_sum = current_squared_sum;
             best_circle = current_circle;
         }
         else {
             delete current_circle;
         }
-
     }
-
-    cout << "best overall count: " << best_count << endl;
-    cout << "best circle: " << best_circle->x << ", " << best_circle->y << ", r: " << best_circle->radius << endl;
     
-    return 0;
-}
+    // RANSAC cylinder
+    best_squared_sum = numeric_limits<double>::max();
+    Cylinder * best_cylinder = new Cylinder;
+    for (int i = 0; i < iterations; i++) {
 
+        // seed the random generator
+        gen.seed( time(NULL) + i );
+        
+        // create cylinder using generated circle, a random angle in the x 
+        // dimension, and a random angle in the y dimension 
+        Cylinder * current_cylinder = new Cylinder {
+            .x = best_circle->x,
+            .y = best_circle->y,
+            .z = best_circle->z,
+            .radius = best_circle->radius,
+            .x_angle = normal_dist(gen),
+            .y_angle = normal_dist(gen)
+        };
 
-int ransac_circle(Circle * circle, vector <Point *> points, float offset) {
+        // ransac the cylinder
+        current_squared_sum = ransac_cylinder(points, current_cylinder);
 
-    float distance;
-    int in_range_count = 0;
-    for (int i = 0; i < points.size(); i++) {
-        distance =  sqrt( pow(circle->x - points[i]->x, 2) + 
-                          pow(circle->y - points[i]->y, 2) );
+        // update the best result if current result is better
+        if (current_squared_sum < best_squared_sum) {
+            best_squared_sum = current_squared_sum;
+            best_cylinder = current_cylinder;
+        }
+        else {
+            delete current_cylinder;
+        }
 
-        if (distance > circle->radius - offset && 
-            distance < circle->radius + offset) {
-                in_range_count++;
-            }
     }
 
-    return in_range_count;
+    //cout << "best distances squared sum: " << best_squared_sum << endl;
+    cout << "best circle, x: " << best_circle->x << " y: " << best_circle->y;
+    cout << " z: " << best_circle->z << " radius: " << best_circle->radius << endl;
+
+    return best_cylinder;
 }
 
 
-Circle * find_circle(Point * first, Point * second, Point * third) {
+double ransac_circle(vector<Point *> points, Circle * circle) {
+
+    // subset the points to 10cm slice at breast height
+    vector<Point *> subset_points = 
+        subset_points_within_z_range(points, 1.3, 1.4);
+
+    // perform ransac
+    float distance;
+    double distances_squared_sum = 0;
+    for (int i = 0; i < subset_points.size(); i++) {
+        float x_distance = circle->x - subset_points[i]->x;
+        float y_distance = circle->y - subset_points[i]->y;
+
+        // distance from center of circle
+        distance =  sqrt( pow(x_distance, 2) + pow(y_distance, 2) );
+
+        // distance from circle 
+        distance = distance - circle->radius;
+
+        distances_squared_sum += pow(distance, 2);
+    }
+    return distances_squared_sum;
+}
+
+
+double ransac_cylinder(vector<Point *> points, Cylinder * cylinder) {
+    float distance;
+    double distances_squared_sum = 0;
+    float x_offset, y_offset, x_distance, y_distance;
+    for (int i = 0; i < points.size(); i++) {
+
+        // find offset from center rod given angle
+        x_offset = offset_from_cylinder_center(points[i], cylinder, 'x');
+        y_offset = offset_from_cylinder_center(points[i], cylinder, 'y');
+   
+        // find x and y distance from cylinder surface, using the x and y
+        // offsets (which take into account cylinder lean)
+        x_distance = cylinder->x - x_offset - points[i]->x;
+        y_distance = cylinder->y - y_offset - points[i]->y;
+
+        // distance from center rod
+        distance =  sqrt( pow(x_distance, 2) + pow(y_distance, 2) );
+
+        // distance from cylinder surface
+        distance = distance - cylinder->radius;
+
+        distances_squared_sum += pow(distance, 2);
+    }
+
+    return distances_squared_sum;
+}
+
+
+float offset_from_cylinder_center(Point * point, Cylinder * cylinder, 
+                                                               char dimension) {
+    float z_difference = point->z - cylinder->z;
+    switch (dimension) {
+        case 'x':
+            if (cylinder->x_angle < 0) {
+                return z_difference / tan( (-90 - cylinder->x_angle) * M_PI/180 );
+            }
+            return z_difference / tan( (90 - cylinder->x_angle) * M_PI/180 );
+        case 'y':
+            if (cylinder->y_angle < 0) {
+                return z_difference / tan( (-90 - cylinder->y_angle) * M_PI/180 );
+            }
+            return z_difference / tan( (90 - cylinder->y_angle) * M_PI/180 );
+        default:
+            cout << "ERROR: expected x or y dimension for offset" << endl;
+            exit(-1);
+    }
+}
+
+
+Circle * find_circle(vector<Point *> points) {
+
+    Point * first = points[0];
+    Point * second = points[1];
+    Point * third = points[2];
 
     // find slopes of the three lines
     float first_slope, second_slope, third_slope;
@@ -111,6 +206,7 @@ Circle * find_circle(Point * first, Point * second, Point * third) {
     first_mid.y = (first->y + second->y) / 2;
     second_mid.x = (first->x + third->x) / 2;
     second_mid.y = (first->y + third->y) / 2;
+
     // find intersection of two perpendicular lines 
     Point intersection;
 
@@ -126,16 +222,21 @@ Circle * find_circle(Point * first, Point * second, Point * third) {
 
         // solve for y
         intersection.y = first_perp_slope * intersection.x + first_perp_intercept;
+
     // find radius of circle
     float radius = sqrt( pow(intersection.x - first->x, 2) + 
                          pow(intersection.y - first->y, 2) );
 
-    // construct and return circle
-    Circle * circle = new Circle;
-    circle->x = intersection.x;
-    circle->y = intersection.y;
-    circle->radius = radius;
+    // find average z value
+    float average_z = (first->z + second->z + third->z) / 3;
 
+    // construct and return circle
+    Circle * circle = new Circle {
+        .x = intersection.x,
+        .y = intersection.y,
+        .z = average_z,
+        .radius = radius,
+    };
     return circle;
 }
 

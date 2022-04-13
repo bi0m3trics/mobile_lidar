@@ -11,24 +11,33 @@ using namespace std;
 int main(int argc, char ** argv) {
 
     vector<Point *> points = parse_points(argv[1]);
+
+    // set tree id and iterations
+    int id = 1;
+    int iterations = 5000;
+
+    // ransac cylinder
+    vector<Point *> subset_points_id = subset_points_by_tree_id(points, id);
+
+        // write points to file for visual check
+        ofstream out_file;
+        out_file.open("points_out.csv");
+        out_file << "id,x,y,z" << endl;
+        for (int i = 0; i < subset_points_id.size(); i++) {
+            out_file << id << "," << subset_points_id[i]->x << "," << subset_points_id[i]->y << "," << subset_points_id[i]->z << endl;
+        }
+
+    cout << "num all points: " << subset_points_id.size() << endl;
+    vector<Point *> inliers = remove_outliers(subset_points_id);
+    cout << "num inliers: " << inliers.size() << endl;
+
+    Cylinder * best_cylinder = perform_ransac(inliers, iterations);
+
+
+    cout << "best cylinder, x: " << best_cylinder->x << " y: " << best_cylinder->y;
+    cout << " z: " << best_cylinder->z << " radius: " << best_cylinder->radius;
+    cout << " x angle: " << best_cylinder->x_angle << " y angle: " << best_cylinder->y_angle << endl;
     
-    vector<int> ids = get_tree_ids(points);
 
-    vector<Point *> subset_points_z = subset_points_within_z_range(points, 1.3, 1.4);
-    vector<Point *> subset_points_z_id = subset_points_by_tree_id(subset_points_z, 1);
-
-/*
-    // get points in z range of some id (set above)
-    Point * current_point;
-    for (int i = 0; i < subset_points_z_id.size(); i++) {
-        current_point = subset_points_z_id[i];
-        cout << "x: " << current_point->x << " y: " << current_point->y << " z: " << current_point->z << " id: " << current_point->tree_id << endl;
-        cout << "iteration: " << i << endl;
-    }
-*/
-
-    // ransac 
-    perform_ransac(subset_points_z_id, 1000);
-
-    return 0;
+    return 0;   
 }

@@ -1,6 +1,9 @@
 #ifndef PARSE_POINT_CSV_HPP
 #define PARSE_POINT_CSV_HPP
 
+using namespace std;
+
+
 struct Point {
     float x;
     float y;
@@ -16,7 +19,7 @@ struct Point {
  * @param filename - path to csv file to be parsed
  * @return Point** - array of pointers to parsed points
  */
-std::vector<Point *> parse_points(char * filename);
+vector<Point *> parse_points(char * filename);
 
 /**
  * @brief - Get the next comma separated value from line

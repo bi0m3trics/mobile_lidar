@@ -8,12 +8,29 @@ using namespace std;
 struct Circle {
     float x;
     float y;
+    float z;
     float radius;
 };
 
-int perform_ransac(vector<Point *> points, int iterations);
-Circle * find_circle(Point * first, Point * second, Point * third);
-int ransac_circle(Circle * circle, vector <Point *> points, float offset);
+struct Cylinder {
+    float x;
+    float y;
+    float z;
+    float radius;
+    float x_angle;
+    float y_angle;
+};
+
+Cylinder * perform_ransac(vector<Point *> points, int iterations);
+
+double ransac_circle(vector<Point *> points, Circle * circle);
+
+double ransac_cylinder(vector<Point *> points, Cylinder * cylinder);
+
+float offset_from_cylinder_center(Point * point, Cylinder * cylinder, 
+                                                               char dimension);
+
+Circle * find_circle(vector<Point *> points);
 
 
 
