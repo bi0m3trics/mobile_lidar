@@ -19,7 +19,7 @@ Cylinder * perform_ransac(vector<Point *> points, int iterations) {
         default_random_engine gen;
          
         // normal distribution to model x and y angles of cylinder
-        normal_distribution<float> normal_dist(0, 5);
+        normal_distribution<float> normal_dist(0, 10);
 
     // ---
 
@@ -35,14 +35,19 @@ Cylinder * perform_ransac(vector<Point *> points, int iterations) {
 
         // find a circle through three random points  
         vector<Point *> three_points = get_three_random_points(points, gen);
+
+            // if no points at breast height then cylinder fitting not meaningful
+            if (three_points.empty()) {
+                return new Cylinder {0, 0, 0, 0, 0, 0};
+            }
+
         current_circle = find_circle(three_points);
 
             // skip iteration if circle finding was unsuccessful
-            // (skips zero division)
             if (current_circle == NULL) {
                 continue;
             }
-        
+
         // ransac the circle
         current_squared_sum = ransac_circle(points, current_circle);
 
@@ -50,6 +55,7 @@ Cylinder * perform_ransac(vector<Point *> points, int iterations) {
         if (current_squared_sum < best_squared_sum) {
             best_squared_sum = current_squared_sum;
             best_circle = current_circle;
+
         }
         else {
             delete current_circle;
@@ -89,7 +95,7 @@ Cylinder * perform_ransac(vector<Point *> points, int iterations) {
 
     }
 
-    //cout << "best distances squared sum: " << best_squared_sum << endl;
+    cout << "best distances squared sum: " << best_squared_sum << endl;
     cout << "best circle, x: " << best_circle->x << " y: " << best_circle->y;
     cout << " z: " << best_circle->z << " radius: " << best_circle->radius << endl;
 
@@ -102,6 +108,17 @@ double ransac_circle(vector<Point *> points, Circle * circle) {
     // subset the points to 10cm slice at breast height
     vector<Point *> subset_points = 
         subset_points_within_z_range(points, 1.3, 1.4);
+cout << "num points in z slice circle fit: " << subset_points.size() << endl;
+
+        /*
+        ofstream out_file;
+        out_file.open("points_out_slice.csv");
+        out_file << "x,y,z" << endl;
+        for (int i = 0; i < subset_points.size(); i++) {
+            out_file << subset_points[i]->x << "," << subset_points[i]->y << "," << subset_points[i]->z << endl;
+        }
+        out_file.close();
+        */
 
     // perform ransac
     float distance;

@@ -57,6 +57,12 @@ vector<Point *> get_three_random_points(vector<Point *> points,
     vector<Point *> subset_points = 
         subset_points_within_z_range(points, 1.3, 1.4);
 
+    // return empty if less than three points in slice
+    if (subset_points.size() < 3) {
+        vector<Point *> empty;
+        return empty;
+    }
+
     // uniform distribution of indexes into subsetted points
     uniform_int_distribution<int> uniform_dist(0, subset_points.size() - 1);
 
@@ -65,7 +71,7 @@ vector<Point *> get_three_random_points(vector<Point *> points,
     for (int i = 0; i < 3; i++) {
         selected_points.push_back( subset_points[uniform_dist(gen)] );
     }
-
+cout << "about to return selected points" << endl;
     return selected_points;
 }
 
