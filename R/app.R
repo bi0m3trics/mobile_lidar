@@ -77,7 +77,7 @@ app <- function(...){
     # render a table showing:
     # file name, size, a type and path
     output$file_data <- renderTable({
-      req(input$file_upload$datapath)
+      req(input$file_upload)
       input$file_upload
 
     })
