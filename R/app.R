@@ -7,7 +7,14 @@ library(spanner)
 library(dplyr)
 library(Rcpp)
 
+#' @import shiny
+#' @import lidR
+#' @import rgl
+#' @import spanner
+#' @import dplyr
+#' @import Rcpp
 
+#' @export
 app <- function(...){
 
   # maximum file size upload is 10 Gigs (10000*1024^2)
@@ -70,7 +77,7 @@ app <- function(...){
     # render a table showing:
     # file name, size, a type and path
     output$file_data <- renderTable({
-      req(input$file_upload)
+      req(input$file_upload$datapath)
       input$file_upload
 
     })
