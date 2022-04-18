@@ -10,6 +10,17 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// rcpp_circle_fit
+NumericVector rcpp_circle_fit(NumericMatrix sample);
+RcppExport SEXP _mobileLidar_rcpp_circle_fit(SEXP sampleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type sample(sampleSEXP);
+    rcpp_result_gen = Rcpp::wrap(rcpp_circle_fit(sample));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rcpp_ransac
 DataFrame rcpp_ransac(DataFrame las_slice_data);
 RcppExport SEXP _mobileLidar_rcpp_ransac(SEXP las_slice_dataSEXP) {
@@ -21,9 +32,25 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// ransac_circle_fit
+NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float inclusion);
+RcppExport SEXP _mobileLidar_ransac_circle_fit(SEXP pointsSEXP, SEXP maxSEXP, SEXP tSEXP, SEXP inclusionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< NumericMatrix >::type points(pointsSEXP);
+    Rcpp::traits::input_parameter< int >::type max(maxSEXP);
+    Rcpp::traits::input_parameter< float >::type t(tSEXP);
+    Rcpp::traits::input_parameter< float >::type inclusion(inclusionSEXP);
+    rcpp_result_gen = Rcpp::wrap(ransac_circle_fit(points, max, t, inclusion));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_mobileLidar_rcpp_circle_fit", (DL_FUNC) &_mobileLidar_rcpp_circle_fit, 1},
     {"_mobileLidar_rcpp_ransac", (DL_FUNC) &_mobileLidar_rcpp_ransac, 1},
+    {"_mobileLidar_ransac_circle_fit", (DL_FUNC) &_mobileLidar_ransac_circle_fit, 4},
     {NULL, NULL, 0}
 };
 
