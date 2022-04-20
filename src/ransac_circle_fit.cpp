@@ -30,9 +30,9 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
 
 
   // parallel for loop each thread does equal number of iterations
-  int thread_i;
-  int error_i;
-  #pragma omp parallel for shared( points, max, t, inclusion, results) private( thread_i, error_i)
+  int thread_i = 0;
+
+  #pragma omp parallel for shared( points, max, t, inclusion, results) private( thread_i)
   for( thread_i = 0; thread_i < max; thread_i++ )
     {
 
@@ -45,17 +45,11 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
       double inclusion_percent = 0;
       double point_to_center = 0;
 
+
       // sample 3 points
       int p1 = rand() % num_points;
       int p2 = rand() % num_points;
       int p3 = rand() % num_points;
-
-      if( tid == 0){
-        Rcout << "p1: " << p1 << std::endl;
-        Rcout << "p2: " << p2 << std::endl;
-        Rcout << "p3: " << p3 << std::endl;
-
-      }
 
       // avoid sampling same point twice
       while( (p1 == p2) | (p1 == p3))
@@ -66,7 +60,6 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
       {
         p2 = rand() % num_points;
       }
-
 
       // fit circle
 
@@ -99,13 +92,20 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
 
 
       // nested parallelism can be an option here
+      inclusion_percent = 0;
+      candidate_fit_error = 0;
+      point_to_center = 0;
 
-      // evaluate circle fit
-      for( error_i = 0; error_i < num_points; error_i++)
+      // evaluate circle fit for each point
+      int error_i = 1;
+      for( error_i = 1; error_i < num_points; error_i++)
       {
+
         // find distance from point to center
-        point_to_center = sqrt( ((points( error_i, 0 ) - center_x)*( points( error_i, 0 ) - center_x)) +
-                                ((points( error_i, 1 ) - center_y)*( points( error_i, 1 ) - center_y)));
+        point_to_center = sqrt( pow( (points( error_i, 0 ) - center_x), 2)
+                                  +
+                                pow( (points( error_i, 1 ) - center_y), 2));
+
 
         // if the points distance from the center, minus the radius, squared
         // is less than threshold squared we increment inclusion percent
@@ -123,7 +123,7 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
 
       // divide inclusion count by number of points to get inclusion percent
       inclusion_percent /= num_points;
-
+      inclusion_percent *= 100;
 
       // if candidate fit error is less than current error we replace
       if( candidate_fit_error < results[ tid][3] )
@@ -138,7 +138,7 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
 
   // loop through to find best fit
   int best_index = 0;
-  int j;
+  int j = 0;
   for( j = 1; j < CORES; j++)
   {
     if( results[j][3] < results[best_index][3])
