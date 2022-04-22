@@ -1,0 +1,570 @@
+---
+title: "Rudd_BO_N"
+author: "Matthew Flanders"
+date: '2022-04-13'
+output: pdf_document
+---
+
+```{r, warning = F, echo=F, include=F }
+library(tidyverse)
+library(scatterplot3d)
+library(rgl)
+library(rospca)
+library(geometry)
+library(spanner)
+library(dbscan)
+library(ggforce)
+library(cowplot)
+library(Rcpp)
+library(mobileLidar)
+library(microbenchmark)
+
+
+las <- readTLSLAS("DensePatchA.laz")
+
+# # large tree
+# las <- readTLSLAS("C:/Users/matt/Desktop/Rudd_MLS_GeoSlam_ALSRegistered/Rudd_BO_N_zebcam_ALSregistered.laz", filter = "-keep_first -thin_with_voxel 0.05 -keep_circle 431789.830879599 3899177.23058565 5 (x y radius)")
+
+# tree 1
+# las <- readTLSLAS("C:/Users/matt/Desktop/Rudd_MLS_GeoSlam_ALSRegistered/Rudd_BO_N_zebcam_ALSregistered.laz", filter = "-keep_first -thin_with_voxel 0.05 -keep_circle 431803.506542352 3899202.00776886 5 (x y radius)")
+
+las <- classify_ground(las, csf(sloop_smooth = FALSE,
+                                class_threshold = 0.5,
+                                cloth_resolution = 0.5,
+                                rigidness = 1L,
+                                iterations = 500L,
+                                time_step = 0.65))
+
+las <- normalize_height(las, tin())
+
+las <- classify_noise(las, ivf(6,1))
+
+las <- filter_poi(las, Classification != LASNOISE)
+
+plot(las, axis = T)
+
+las_slice <- filter_poi(las, Z>=0.62, Z<=2.12)
+
+eigens <- spanner::eigen_metrics(las_slice, radius = 0.33, ncpu = 8)
+
+pt_den <- spanner:::C_count_in_sphere(las_slice, radius = 0.33, ncpu = 8)
+
+las_slice@data<-cbind(las_slice@data, eigens)
+
+las_slice@data<-cbind(las_slice@data, pt_den)
+
+
+# adjust this Z slice if the trees width is close to the height of the slice
+las_slice <- filter_poi(las_slice, Z>=0.62 ,Z<= 2.12)
+
+clust <- dbscan::dbscan(las_slice@data[,c("X","Y","Z", "eSum","Verticality")], eps = 0.25, minPts = 100)
+
+las_slice@data$treeID<-clust$cluster
+
+
+
+plot(las_slice, color="treeID", axis = T)
+```
+
+```{r}
+t0 <- Sys.time()
+fit_df <- las_slice_circle_fitting( las_slice, 100000, 0.07, 0.7)
+Sys.time() - t0
+```
+
+
+```{r}
+test_tree = 12
+tree_slice <- filter_poi(las_slice, treeID == test_tree)
+plot(tree_slice, color="treeID", axis = T)
+
+# note fit is still in the reduced dimensionality/principal component space
+# that is why the sphere looks to be the correct size but in the wrond position
+# when plotting the next line
+# spheres3d(x = fit_df[test_tree,1], y = fit_df[test_tree,2], z = 1.37, r = fit_df[test_tree,3])
+
+format(fit_df[test_tree,], scientific = F)
+
+fit_df[test_tree,3]*2
+
+```
+
+
+```{r}
+# assign all points to a matrix
+M <- cbind( tree_slice$X, tree_slice$Y, tree_slice$Z, tree_slice$treeID)
+
+
+
+  # assign tmp matrix the points for current tree id
+  tmp <- M[ , 1:3] 
+  
+  # preform robust pca
+  resR <- robpca(tmp, k=3, ndir = 5000)
+  
+  # filter tmp to around dbh
+  # tmp <- tmp[ tmp[ ,3] >=  1.27, ]
+  # tmp <- tmp[ tmp[ ,3] <=  1.47, ]
+  
+  
+  # use robust pca to reduce dimensions and fit points to a plane orthogonal to the tree lean
+  # get mean and principal components of points
+  # note here pc1 will be the greatest value of the principal componets
+  # with pc1 being the trees vertical componet, and pc2 and pc3 being the horizontal components 
+  # if the tree has a greater width than the height of the slice taken, what we assume to be pc1 as
+  # the height will be one of the horozontal componets
+  center <- resR$center
+  pc1 <- resR$loadings[ , 1]
+  pc2 <- resR$loadings[ , 2]
+  pc3 <- resR$loadings[ , 3]
+  
+  # bind the lower two principal components into a matrix
+  pc <- t(cbind( pc3, pc2))
+  
+  # subtract means from each point
+  tmp_sub_means <- t( sweep( tmp, 2, center ))
+  
+  # init empty matrix
+  pts_proj <- matrix( 0,nrow = 2)
+  
+  # loop through all points passing them through matrix
+  for( i in 1:ncol(tmp_sub_means))
+  {
+    a <- pc %*% tmp_sub_means[ , i ]
+    pts_proj <- cbind(pts_proj, a)
+  }
+  
+  # for some reason when removing these na values the loop does not end
+  # remove first row of matrix, contains na values
+  # pts_proj <-pts_proj[ -1,]
+  
+  # transpose matrix to long format
+  pts_proj <- t(pts_proj)
+  
+  pts_proj <- pts_proj[ -c(1),]
+  
+  df <- as.data.frame( pts_proj)
+  
+ggplot( df, aes( x = pc3, y = pc2))+
+  geom_point()+
+  ggtitle("tree points projected")+
+  geom_circle( aes( x0 = fit_df[test_tree,1], y0 = fit_df[test_tree,2], r = fit_df[test_tree,3], color = "red"), inherit.aes = F )+
+  coord_fixed()+ 
+  theme( legend.position = "none")+
+  coord_fixed()
+fit_df[test_tree,]
+```
+
+
+```{r}
+
+
+
+# assign all points to a matrix
+M <- cbind( las_slice$X, las_slice$Y, las_slice$Z, las_slice$treeID)
+
+num_trees = unique(las_slice$treeID)
+
+  # test_tree = 45
+  
+  # select a tree from the matrix by id
+  tree_pts <- M[ M[ ,4] ==  i, ]
+  
+  # assign tmp matrix the points for current tree id
+  tmp <- tree_pts[ , 1:3] 
+  
+  # preform robust pca
+  resR <- robpca(tmp, k=3, ndir = 5000)
+  
+  # filter tmp to around dbh
+  # tmp <- tmp[ tmp[ ,3] >=  1.27, ]
+  # tmp <- tmp[ tmp[ ,3] <=  1.47, ]
+  
+  
+  # use robust pca to reduce dimensions and fit points to a plane orthogonal to the tree lean
+  # get mean and principal components of points
+  # note here pc1 will be the greatest value of the principal componets
+  # with pc1 being the trees vertical componet, and pc2 and pc3 being the horizontal components 
+  # if the tree has a greater width than the height of the slice taken, what we assume to be pc1 as
+  # the height will be one of the horozontal componets
+  center <- resR$center
+  pc1 <- resR$loadings[ , 1]
+  pc2 <- resR$loadings[ , 2]
+  pc3 <- resR$loadings[ , 3]
+  
+  # bind the lower two principal components into a matrix
+  pc <- t(cbind( pc3, pc2))
+  
+  # subtract means from each point
+  tmp_sub_means <- t( sweep( tmp, 2, center ))
+  
+  # init empty matrix
+  pts_proj <- matrix( 0,nrow = 2)
+  
+  # loop through all points passing them through matrix
+  for( i in 1:ncol(tmp_sub_means))
+  {
+    a <- pc %*% tmp_sub_means[ , i ]
+    pts_proj <- cbind(pts_proj, a)
+  }
+  
+  # for some reason when removing these na values the loop does not end
+  # remove first row of matrix, contains na values
+  # pts_proj <-pts_proj[ -1,]
+  
+  # transpose matrix to long format
+  pts_proj <- t(pts_proj)
+  
+  pts_proj <- pts_proj[ -c(1),]
+  
+  df <- as.data.frame( pts_proj)
+  
+  
+
+  
+
+best_fit <- ransac_circle_fit( pts_proj, 1000, 0.01, 0.8)
+format(best_fit, scientific = F)
+best_fit[3]*2
+
+geom_point()+
+  ggtitle("tree points projected")+
+  geom_circle( aes( x0 = best_fit[1], y0 = best_fit[2], r = best_fit[3], color = "red"), inherit.aes = F )+
+  coord_fixed()+ 
+  theme( legend.position = "none")+
+  geom_point(aes(x=best_fit[1], y=best_fit[2]), colour="blue")+
+  coord_fixed()
+
+
+```
+
+
+
+
+```{r}
+rgl.open() 
+rgl.points(tree_pts[ , 1 ], tree_pts[ , 2], tree_pts[ , 3], color ="white", axis = T)
+```
+
+
+```{r}
+# select a tree from the matrix by id
+  tree_pts <- M[ M[ ,4] ==  1, ]
+  
+  # assign tmp matrix the points for current tree id
+  tmp <- tree_pts[ , 1:3] 
+  
+  # preform robust pca
+  resR <- robpca(tmp, k=3, ndir = 5000)
+  
+  # use robust pca to reduce dimensions and fit points to a plane orthogonal to the tree lean
+  # get mean and principal components of points
+  # note here pc1 will be the greatest value of the principal componets
+  # with pc1 being the trees vertical componet, and pc2 and pc3 being the horizontal components 
+  # if the tree has a greater width than the height of the slice taken, what we assume to be pc1 as
+  # the height will be one of the horozontal componets
+  center <- resR$center
+  pc1 <- resR$loadings[ , 1]
+  pc2 <- resR$loadings[ , 2]
+  pc3 <- resR$loadings[ , 3]
+  
+  # bind the lower two principal components into a matrix
+  pc <- t(cbind( pc3, pc2))(pts_proj)
+  
+  # subtract means from each point
+  tmp_sub_means <- t( sweep( tmp, 2, center ))
+  
+  # init empty matrix
+  pts_proj <- matrix( nrow = 2)
+  
+  # loop through all points passing them through matrix
+  for( i in 1:ncol(tmp_sub_means))
+  {
+    a <- pc %*% tmp_sub_means[ , i ]
+    pts_proj <- cbind(pts_proj, a)
+  }
+  
+  # transpose matrix to long format
+  pts_proj <- t
+  
+  df <- as.data.frame( pts_proj)
+  
+  
+  # }
+```
+
+
+```{r}
+best_fit <- ransac_circle_fit( pts_proj, 10000, 0.001, 0.9)
+best_fit
+```
+
+
+
+### circle fitting
+
+```{r}
+
+ggplot( df, aes( x = pc3, y = pc2))+
+  geom_point()+
+  ggtitle("tree points projected")+
+  geom_circle( aes( x0 = best_fit[1], y0 = best_fit[2], r = best_fit[3], color = "red"), inherit.aes = F )+
+  coord_fixed()+ 
+  theme( legend.position = "none")
+best_fit
+```
+
+
+```{r}
+best_fit[3]*2
+```
+
+
+## fit at 20cm around dbh
+
+```{r}
+# assign all points to a matrix
+M <- cbind( las_slice$X, las_slice$Y, las_slice$Z, las_slice$treeID)
+
+# select a tree from the matrix by id
+tree_pts <- M[M[ ,4] == 1,]
+
+# assign tmp matrix the points for current tree id
+tmp <- tree_pts[ , 1:3] 
+
+# preform robust pca
+resR <- robpca(tmp, k=3, ndir = 5000)
+
+# select 10 cm of points around dbh
+tmp <- tmp[ tmp[ , 3] >= 1.27 & tmp[ , 3] <= 1.47, ] 
+
+# use robust pca to reduce dimensions and fit points to a plane orthogonal to the tree lean
+# get mean and principal components of points
+# note here pc1 will be the greatest value of the principal componets
+# with pc1 being the trees vertical componet, and pc2 and pc3 being the horizontal componets 
+# if the tree has a greater width than the height of the slice taken what we assume to be pc1 as
+# the height will be one of the horozontal componets
+center <- resR$center
+pc1 <- resR$loadings[ , 1]
+pc2 <- resR$loadings[ , 2]
+pc3 <- resR$loadings[ , 3]
+
+# bind the lower two principal components into a matrix
+pc <- t(cbind( pc3, pc2))
+
+# subtract means from each point
+tmp_sub_means <- t( sweep( tmp, 2, center ))
+
+
+
+# init empty matrix
+pts_proj <- matrix( nrow = 2)
+
+# loop through all points passing them through matrix
+for( i in 1:ncol(tmp_sub_means))
+{
+  a <- pc %*% tmp_sub_means[ , i ]
+  pts_proj <- cbind(pts_proj, a)
+}
+
+# transpose matrix to long format
+pts_proj <- t(pts_proj)
+
+df <- as.data.frame( pts_proj)
+```
+
+```{r}
+
+best_fit <- ransac_circle_fit( pts_proj, 10000, 0.001, 0.9)
+best_fit
+
+```
+```{r}
+ggplot( df, aes( x = pc2, y = pc3))+
+  geom_point()+
+  ggtitle("tree points projected")+
+  geom_circle( aes( x0 = best_fit[2], y0 = best_fit[1], r = best_fit[3], color = "red"), inherit.aes = F )+
+  coord_fixed()+ 
+  theme( legend.position = "none")
+```
+
+
+### circle fitting
+
+```{r}
+sample <- pts_proj[ sample( nrow(pts_proj), size = 3, replace = F), ]
+```
+
+
+```{r}
+
+line_1_y_diff = sample[2, 2] - sample[1, 2]
+line_1_x_diff = sample[2, 1] - sample[1, 1]
+line_2_y_diff = sample[3, 2] - sample[2, 2]
+line_2_x_diff = sample[3, 1] - sample[2, 1]
+
+line_1_slope = line_1_y_diff/line_1_x_diff
+
+line_2_slope = line_2_y_diff/line_2_x_diff 
+
+center_x = ( line_1_slope * line_2_slope * 
+               ( sample[1, 2] - sample[3, 2]) +
+               line_2_slope * 
+               ( sample[1, 1] + sample[2, 1]) -
+               line_1_slope * 
+               ( sample[2, 1] + sample[3, 1])) /
+                (2* (line_2_slope-line_1_slope) )
+
+center_y = -1 * (center_x - ( sample[1, 1] + sample[2, 1])/2) /
+  line_1_slope +
+  (sample[1, 2]+sample[2, 2])/2
+
+r = sqrt( (center_x - sample[1, 1])^2 + (center_y - sample[1, 2])^2)
+
+center_x
+center_y
+r
+```
+
+### view single iteration circle fit
+
+```{r, warning = F}
+
+ggplot( df, aes( x = pc2, y = pc3))+
+  geom_point()+
+  ggtitle("tree points projected")+
+  geom_circle( aes( x0 = center_y, y0 = center_x, r = r, color = "red"), inherit.aes = F )+
+  coord_fixed()+ 
+  theme( legend.position = "none")
+
+
+```
+
+
+
+
+
+
+
+
+```{r}
+# assign all points to a matrix
+M <- cbind( las_slice$X, las_slice$Y, las_slice$Z, las_slice$treeID)
+
+# select a tree from the matrix by id
+tree_pts <- M[M[ ,4] == 2,]
+
+# assign tmp matrix the points for current tree id
+tmp <- tree_pts[ , 1:3] 
+
+# preform robust pca
+resR <- robpca(tmp, k=3, ndir = 5000)
+
+# select 10 cm of points around dbh
+tmp <- tmp[ tmp[ , 3] >= 1.27 & tmp[ , 3] <= 1.47, ] 
+
+# use robust pca to reduce dimensions and fit points to a plane orthogonal to the tree lean
+# get mean and principal components of points
+# note here pc1 will be the greatest value of the principal componets
+# with pc1 being the trees vertical componet, and pc2 and pc3 being the horizontal componets 
+# if the tree has a greater width than the height of the slice taken what we assume to be pc1 as
+# the height will be one of the horozontal componets
+center <- resR$center
+pc1 <- resR$loadings[ , 1]
+pc2 <- resR$loadings[ , 2]
+pc3 <- resR$loadings[ , 3]
+
+# bind the lower two principal components into a matrix
+pc <- t(cbind( pc3, pc2))
+
+# subtract means from each point
+tmp_sub_means <- t( sweep( tmp, 2, center ))
+
+
+
+# init empty matrix
+pts_proj <- matrix( nrow = 2)
+
+# loop through all points passing them through matrix
+for( i in 1:ncol(tmp_sub_means))
+{
+  a <- pc %*% tmp_sub_means[ , i ]
+  pts_proj <- cbind(pts_proj, a)
+}
+
+# transpose matrix to long format
+pts_proj <- t(pts_proj)
+
+df <- as.data.frame( pts_proj)
+```
+
+
+circle fitting
+
+```{r}
+sample <- pts_proj[ sample( nrow(pts_proj), size = 3, replace = F), ]
+```
+
+
+```{r}
+
+line_1_y_diff = sample[2, 2] - sample[1, 2]
+line_1_x_diff = sample[2, 1] - sample[1, 1]
+line_2_y_diff = sample[3, 2] - sample[2, 2]
+line_2_x_diff = sample[3, 1] - sample[2, 1]
+
+line_1_slope = line_1_y_diff/line_1_x_diff
+
+line_2_slope = line_2_y_diff/line_2_x_diff 
+
+center_x = ( line_1_slope * line_2_slope * 
+               ( sample[1, 2] - sample[3, 2]) +
+               line_2_slope * 
+               ( sample[1, 1] + sample[2, 1]) -
+               line_1_slope * 
+               ( sample[2, 1] + sample[3, 1])) /
+                (2* (line_2_slope-line_1_slope) )
+
+center_y = -1 * (center_x - ( sample[1, 1] + sample[2, 1])/2) /
+  line_1_slope +
+  (sample[1, 2]+sample[2, 2])/2
+
+r = sqrt( (center_x - sample[1, 1])^2 + (center_y - sample[1, 2])^2)
+
+center_x
+center_y
+r
+```
+
+```{r, warning = F}
+
+ggplot( df, aes( x = pc2, y = pc3))+
+  geom_point()+
+  ggtitle("tree points projected")+
+  geom_circle( aes( x0 = center_y, y0 = center_x, r = r, color = "red"), inherit.aes = F )+
+  coord_fixed()+ 
+  theme( legend.position = "none")
+
+
+```
+
+
+
+
+
+```{r}
+
+    sample <- pts_proj[ sample( nrow(pts_proj), size = 3, replace = F), ]
+    
+    t0 <- Sys.time()
+    fit <- rcpp_circle_fit(sample)
+    Sys.time() - t0
+    fit
+    
+    ggplot( df, aes( x = pc2, y = pc3))+
+      geom_point()+
+      ggtitle("tree points projected")+
+      geom_circle( aes( x0 = fit[1], y0 = fit[2], r = fit[3], color = "red"), inherit.aes = F )+
+      coord_fixed()+ 
+      theme( legend.position = "none")
+```

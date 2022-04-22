@@ -18,29 +18,33 @@
 #' @param inclusion the desired inclusion to be considered a good circle fit to the data
 #' @export
 las_slice_circle_fitting <- function( las_slice, iterations, threshold, inclusion)
+
 {
 
   # dataframe to hold results
-  fit_results <- data.frame(matrix(ncol = 6, nrow = 0))
-  names <- c("tree_id", "center_x", "center_y", "radius", "fit_error", "inclusion_percent")
-  colnames( fit_results) <- names
-  #   tree_id = int(),
-  #   center_x = double(),
-  #   center_y = double(),
-  #   # center_z = double(),
-  #   radius = double(),
-  #   fit_error = double(),
-  #   inclusion_percent = double()
+  fit_results <- matrix(ncol = 5, nrow = 0)
+  # fit_results <- data.frame(
+  #   tree_id = c(0.0),
+  #   center_x = c(0.0),
+  #   center_y = c(0.0),
+  #   radius = c(0.0),
+  #   candidate_fit_error = c(0.0),
+  #   inclusion_percent = c(0.0)
   # )
 
   # matrix to hold points
   M <- cbind( las_slice$X, las_slice$Y, las_slice$Z, las_slice$treeID)
 
   # loop through all individual tree ids
-  for( tree_id in 1:unique(las_slice$treeID))
+  for( tree_id in 1:length(unique(las_slice$treeID)))
   {
     # select current tree
     current_pts <- M[ M[ ,4] ==  tree_id, ]
+
+    if( nrow(current_pts) < 3)
+    {
+      next
+    }
 
     # trim away tree id
     current_pts <- current_pts[ , 1:3]
@@ -71,7 +75,7 @@ las_slice_circle_fitting <- function( las_slice, iterations, threshold, inclusio
     # to get more accurate results
     # filter tmp to around dbh
     # current_pts <- current_pts[ current_pts[ ,3] >=  1.07, ]
-    # current_pts <- current_pts[ current_pts[ ,3] <=  1.77, ]
+    # current_pts <- current_pts[ current_pts[ ,3] <=  1.67, ]
 
     # bind the lower two principal components into a matrix
     pc <- t(cbind( pc3, pc2))
@@ -99,8 +103,17 @@ las_slice_circle_fitting <- function( las_slice, iterations, threshold, inclusio
       pts_proj <- cbind(pts_proj, a)
     }
 
+    # transpose matrix to long format
+    pts_proj <- t(pts_proj)
+    # remove the first entry of 0 values
+    pts_proj <- pts_proj[ -c(1),]
+
+
+
+
     # call ransac circle fit and bind it to the data frame
     fit_results <- rbind( fit_results, ransac_circle_fit( pts_proj, iterations, threshold, inclusion))
+
 
 
   }

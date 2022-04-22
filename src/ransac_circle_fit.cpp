@@ -13,11 +13,13 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
   // threshold squared to avoid extra computation later
   double t_2 = t * t;
 
+
   // core count assignment
   omp_set_num_threads(CORES);
 
   // number of points in the tree, needed to randomly select a point
-  int num_points = points.rows();
+  int num_points = (points.nrow() - 1);
+
 
   // array to hold results, each thread writes to its own row
   double results [CORES][5] = {0};
@@ -29,15 +31,16 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
   }
 
 
+
   // parallel for loop each thread does equal number of iterations
   int thread_i = 0;
-
   #pragma omp parallel for shared( points, max, t, inclusion, results) private( thread_i)
   for( thread_i = 0; thread_i < max; thread_i++ )
     {
 
       // thread id
       int tid=omp_get_thread_num();
+
 
 
       // variables for circle fit
@@ -51,6 +54,7 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
       int p2 = rand() % num_points;
       int p3 = rand() % num_points;
 
+
       // avoid sampling same point twice
       while( (p1 == p2) | (p1 == p3))
       {
@@ -60,6 +64,7 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
       {
         p2 = rand() % num_points;
       }
+
 
       // fit circle
 
@@ -96,9 +101,11 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
       candidate_fit_error = 0;
       point_to_center = 0;
 
+
+
       // evaluate circle fit for each point
-      int error_i = 1;
-      for( error_i = 1; error_i < num_points; error_i++)
+      int error_i = 0;
+      for( error_i = 0; error_i < num_points ; error_i++)
       {
 
         // find distance from point to center
@@ -118,15 +125,18 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
 
       }
 
+
       // divide error sum by number of points to get mean squared error
       candidate_fit_error /=  num_points;
 
       // divide inclusion count by number of points to get inclusion percent
       inclusion_percent /= num_points;
-      inclusion_percent *= 100;
+      // inclusion_percent *= 100;
 
-      // if candidate fit error is less than current error we replace
-      if( candidate_fit_error < results[ tid][3] )
+      // if candidate fit error is less than current error
+      // and if the inclusion percent is greater than desired inclusion
+      //  we replace
+      if( candidate_fit_error < results[ tid][3] && inclusion_percent > inclusion )
       {
         results[ tid][0] = center_x;
         results[ tid][1] = center_y;
@@ -135,6 +145,9 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
         results[ tid][4] = inclusion_percent;
       }
     }
+
+
+
 
   // loop through to find best fit
   int best_index = 0;
