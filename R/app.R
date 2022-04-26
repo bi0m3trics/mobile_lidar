@@ -6,6 +6,7 @@ library(rgl)
 library(spanner)
 library(dplyr)
 library(Rcpp)
+library(rospca)
 
 #' @import shiny
 #' @import lidR
@@ -13,6 +14,7 @@ library(Rcpp)
 #' @import spanner
 #' @import dplyr
 #' @import Rcpp
+#' @import rospca
 
 #' @export
 app <- function(...){
@@ -43,11 +45,11 @@ app <- function(...){
 
         actionButton("btn_clean_data", label = "Clean Data"),
 
-        radioButtons("point_cloud_view", "Point Cloud View", c("Simple" = "simple", "Segment Trees (Takes a while to process)" = "segment")),
-
         actionButton("btn_draw_point_cloud", label = "Draw Point Cloud"),
 
-        actionButton("btn_draw_slice", label = "Draw Slice")
+        actionButton("btn_ransac", label = "Run Ransac"),
+
+        actionButton("btn_draw_slice", label = "Draw Slice and Table")
 
       ),
 
@@ -154,50 +156,8 @@ app <- function(...){
     # create plot when submit button is pressed
     plot_reactive <- eventReactive(input$btn_draw_point_cloud, {
 
-
-      if(input$point_cloud_view == "simple")
-      {
-        # plot the non-ground points, colored by height
-        lidR::plot(voxelize_points(filter_poi(las, Classification!=2), 0.25), color="Z", breaks = "quantile")
-      }
-
-      else
-      {
-        # perform a deep inspection of the las object. If you see any
-        # red text, you may have issues!
-        las_check(las)
-
-        # find individual tree locations and attribute data
-        myTreeLocs = get_raster_eigen_treelocs(las = las, res = 0.05,
-                                               pt_spacing = 0.0254,
-                                               dens_threshold = 0.2,
-                                               neigh_sizes=c(0.333, 0.166, 0.5),
-                                               eigen_threshold = 0.5,
-                                               grid_slice_min = 0.6666,
-                                               grid_slice_max = 2.0,
-                                               minimum_polygon_area = 0.025,
-                                               cylinder_fit_type = "ransac",
-                                               output_location = getwd(),
-                                               max_dia=0.5,
-                                               SDvert = 0.25)
-
-        # plot the tree information over a CHM
-        plot(lidR::grid_canopy(las, res = 0.2, p2r()))
-        points(myTreeLocs$X, myTreeLocs$Y, col = "black", pch=16,
-               cex = myTreeLocs$Radius^2*10, asp=1)
-
-
-        # segment the point cloud
-        myTreeGraph <- segment_graph(las = las, tree.locations = myTreeLocs, k = 50,
-                                     distance.threshold = 0.5,
-                                     use.metabolic.scale = FALSE,
-                                     subsample.graph = 0.1,
-                                     return.dense = FALSE,
-                                     output_location = getwd())
-
-        # plot it in 3d colored by treeID
-        plot(myTreeGraph, color = "treeID")
-      }
+      # plot the non-ground points, colored by height
+      lidR::plot(voxelize_points(filter_poi(las, Classification!=2), 0.25), color="Z", breaks = "quantile")
       rglwidget()
     })
 
@@ -209,12 +169,9 @@ app <- function(...){
     })
 
 
-    # use the file that is selected from the drop down
-    # create plot when submit button is pressed
-    slice_reactive <- eventReactive(input$btn_draw_slice, {
-
+    ransac_reactive <- eventReactive(input$btn_ransac, {
       # show pop up that data segmenting
-      showModal(modalDialog("Slicing and segmented trees..."))
+      showModal(modalDialog("Step 1/3: Setting up segmentation..."))
 
       # set up for dbscan to find treeIDs
       las_slice <- filter_poi(las, Z>=0.5, Z<=2)
@@ -227,6 +184,8 @@ app <- function(...){
 
       las_slice <- filter_poi(las_slice, Z>=0.87, Z<=1.87)
 
+      showModal(modalDialog("Step 2/3: Clustering points with dbscan..."))
+
       # cluster points using dbscan
       clust <- dbscan::dbscan(las_slice@data[,c("X","Y","Z", "eSum","Verticality")], eps = 0.25, minPts = 100)
 
@@ -236,26 +195,44 @@ app <- function(...){
       # las_slice_data is a dataframe with only important points for ransac later on
       las_slice_data <- las_slice@data[,c("X", "Y", "Z", "treeID")]
 
-      # render table of data points
-      output$slice_table <- renderDataTable(las_slice_data)
+      showModal(modalDialog("Step 3/3: Ransac circle fitting..."))
 
-      # write to csv for testing
-      # write_csv(las_slice@data[,c("X", "Y", "Z", "treeID")],"C:\\Users\\rexmy\\Documents\\GitHub\\mobile_lidar\\DensePatchA.csv")
+      # call ransac fit function
+      fit_df <<- las_slice_circle_fitting( las_slice, 1000, 0.05, 0.85)
 
-      # plot the slice
-      lidR::plot(las_slice, color="treeID")
-      rglwidget()
-
-      output$btn_process_data <- renderUI({
-        actionButton('btn_process_data',
-                     label = 'Process Data')
-
-      })
-
-
+      fit_df
 
       # remove pop up window
       removeModal()
+    })
+
+
+    # render table of data points
+    output$slice_table <- renderDataTable({
+      ransac_reactive()
+    })
+
+
+    # use the file that is selected from the drop down
+    # create plot when submit button is pressed
+    slice_reactive <- eventReactive(input$btn_draw_slice, {
+
+      output$slice_table <- renderDataTable(fit_df)
+
+      # plot the slice
+      offsets <- lidR::plot(las_slice, color="treeID", axis = T)
+      spheres3d( x = fit_df[,1]-offsets[1], y = fit_df[,2]-offsets[2], z = 1.37, r = fit_df[,3], alpha = .7)
+
+      rgl.texts( x = fit_df[,1]-offsets[1], y = fit_df[,2]-offsets[2], z = fit_df[,3]+1.37 +.1, text = paste( "x: ",fit_df[,1]))
+      rgl.texts( x = fit_df[,1]-offsets[1], y = fit_df[,2]-offsets[2], z = fit_df[,3]+1.37 +.2, text = paste( "y: ", fit_df[,2] ))
+      rgl.texts( x = fit_df[,1]-offsets[1], y = fit_df[,2]-offsets[2], z = fit_df[,3]+1.37 +.3, text = paste( "diameter: ", fit_df[,3]*2))
+      rgl.texts( x = fit_df[,1]-offsets[1], y = fit_df[,2]-offsets[2], z = fit_df[,3]+1.37 +.4, text = paste( "mean squared error: ", fit_df[,4] ))
+      rgl.texts( x = fit_df[,1]-offsets[1], y = fit_df[,2]-offsets[2], z = fit_df[,3]+1.37 +.5, text = paste( "inclusion: ", fit_df[,5] ))
+      rgl.texts( x = fit_df[,1]-offsets[1], y = fit_df[,2]-offsets[2], z = fit_df[,3]+1.37 +.6, text = paste( "tree id: ", fit_df[,6] ))
+      rgl.texts( x = fit_df[,1]-offsets[1], y = fit_df[,2]-offsets[2], z = fit_df[,3]+1.37 +.7, text = paste( "lean: ", fit_df[,7] ))
+      rglwidget()
+
+
     })
 
 

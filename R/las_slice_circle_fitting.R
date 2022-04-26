@@ -123,8 +123,9 @@ las_slice_circle_fitting <- function( las_slice, iterations, threshold, inclusio
     # call ransac circle fit and bind it to the data frame
     # fit_results <- rbind( fit_results, ransac_circle_fit( pts_proj, iterations, threshold, inclusion))
 
+    fit_results <- as.data.frame(fit_results)
 
-
+    fit_results <- fit_results %>% magrittr::set_colnames(c("X_location", "Y_location", "Radius", "Error", "Inclusion %", "Tree_ID", "Lean Angle"))
   }
   return(fit_results)
 }
