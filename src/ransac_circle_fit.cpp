@@ -5,6 +5,8 @@ using namespace Rcpp;
 #define CORES 8
 
 
+
+
 // [[Rcpp::plugins(openmp)]]
 //' @export
 // [[Rcpp::export]]
@@ -13,13 +15,11 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
   // threshold squared to avoid extra computation later
   double t_2 = t * t;
 
-
   // core count assignment
   omp_set_num_threads(CORES);
 
   // number of points in the tree, needed to randomly select a point
   int num_points = (points.nrow() - 1);
-
 
   // array to hold results, each thread writes to its own row
   double results [CORES][5] = {0};
@@ -41,19 +41,15 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
       // thread id
       int tid=omp_get_thread_num();
 
-
-
       // variables for circle fit
       double candidate_fit_error = 0;
       double inclusion_percent = 0;
       double point_to_center = 0;
 
-
       // sample 3 points
       int p1 = rand() % num_points;
       int p2 = rand() % num_points;
       int p3 = rand() % num_points;
-
 
       // avoid sampling same point twice
       while( (p1 == p2) | (p1 == p3))
@@ -96,13 +92,12 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
                             ((center_y - points( p1, 1) )*(center_y - points( p1, 1) )));
 
 
-      // nested parallelism can be an option here
+      // reset variables for a new circle fit
       inclusion_percent = 0;
       candidate_fit_error = 0;
       point_to_center = 0;
 
-
-
+      // SIMD can be used here for distance calculation of points
       // evaluate circle fit for each point
       int error_i = 0;
       for( error_i = 0; error_i < num_points ; error_i++)
@@ -131,7 +126,8 @@ NumericVector ransac_circle_fit(NumericMatrix points, int max, float t, float in
 
       // divide inclusion count by number of points to get inclusion percent
       inclusion_percent /= num_points;
-      // inclusion_percent *= 100;
+
+
 
       // if candidate fit error is less than current error
       // and if the inclusion percent is greater than desired inclusion

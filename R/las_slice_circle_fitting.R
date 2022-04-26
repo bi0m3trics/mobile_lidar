@@ -22,14 +22,14 @@ las_slice_circle_fitting <- function( las_slice, iterations, threshold, inclusio
 {
 
   # dataframe to hold results
-  fit_results <- matrix(ncol = 5, nrow = 0)
+  fit_results <- matrix(ncol = 7, nrow = 0)
   # fit_results <- data.frame(
   #   tree_id = c(0.0),
   #   center_x = c(0.0),
   #   center_y = c(0.0),
   #   radius = c(0.0),
   #   candidate_fit_error = c(0.0),
-  #   inclusion_percent = c(0.0)
+  #   inclusion_percent = c(0.0),
   # )
 
   # matrix to hold points
@@ -108,11 +108,20 @@ las_slice_circle_fitting <- function( las_slice, iterations, threshold, inclusio
     # remove the first entry of 0 values
     pts_proj <- pts_proj[ -c(1),]
 
+    # call ransac to get a best fit
+    best_fit <- ransac_circle_fit( pts_proj, iterations, threshold, inclusion)
+    # return to xyz coordinates
+    xyz_center <- center +  best_fit[1]%*%pc3 + best_fit[2]%*%pc2
+    # replace pc values with xy values
+    best_fit[1] <- xyz_center[1]
+    best_fit[2] <- xyz_center[2]
+    best_fit[6] <- tree_id
+    best_fit[7] <- acos( pc1[3] / sqrt( pc1[1]^2 + pc1[2]^2 + pc1[3]^2 ))
 
-
+    fit_results <- rbind( fit_results, best_fit)
 
     # call ransac circle fit and bind it to the data frame
-    fit_results <- rbind( fit_results, ransac_circle_fit( pts_proj, iterations, threshold, inclusion))
+    # fit_results <- rbind( fit_results, ransac_circle_fit( pts_proj, iterations, threshold, inclusion))
 
 
 
