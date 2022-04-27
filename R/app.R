@@ -63,11 +63,11 @@ app <- function(...){
                              verbatimTextOutput("las_data")),
 
                     # shows the RGL viewer for 3d point cloud
-                    tabPanel("Point Cloud View", rglwidgetOutput("plot",  width = 800, height = 600)),
+                    tabPanel("Point Cloud View", rglwidgetOutput("plot",  width = 1200, height = 800)),
 
                     # shows the RGL viewer for slice view
                     tabPanel("Slice View", uiOutput("btn_process_data"),
-                             rglwidgetOutput("slice",  width = 800, height = 600),
+                             rglwidgetOutput("slice",  width = 1200, height = 800),
                              dataTableOutput("slice_table"))
         )
       )
@@ -190,10 +190,9 @@ app <- function(...){
       clust <- dbscan::dbscan(las_slice@data[,c("X","Y","Z", "eSum","Verticality")], eps = 0.25, minPts = 100)
 
       # create new column treeID
-      las_slice@data$treeID<-clust$cluster
+      las_slice@data$treeID <- clust$cluster
 
-      # las_slice_data is a dataframe with only important points for ransac later on
-      las_slice_data <- las_slice@data[,c("X", "Y", "Z", "treeID")]
+      las_slice <<- las_slice
 
       showModal(modalDialog("Step 3/3: Ransac circle fitting..."))
 
