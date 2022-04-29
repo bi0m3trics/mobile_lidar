@@ -197,7 +197,7 @@ app <- function(...){
       showModal(modalDialog("Step 3/3: Ransac circle fitting..."))
 
       # call ransac fit function
-      fit_df <<- las_slice_circle_fitting( las_slice, 1000, 0.05, 0.85)
+      fit_df <<- las_slice_circle_fitting( las_slice, 1000, 0.02, 0.8)
 
       fit_df
 

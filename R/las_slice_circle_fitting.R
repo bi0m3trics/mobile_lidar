@@ -116,7 +116,7 @@ las_slice_circle_fitting <- function( las_slice, iterations, threshold, inclusio
     best_fit[1] <- xyz_center[1]
     best_fit[2] <- xyz_center[2]
     best_fit[6] <- tree_id
-    best_fit[7] <- acos( pc1[3] / sqrt( pc1[1]^2 + pc1[2]^2 + pc1[3]^2 ))
+    best_fit[7] <-  180 * (acos( pc1[3] / sqrt( pc1[1]^2 + pc1[2]^2 + pc1[3]^2 ))) / pi
 
     fit_results <- rbind( fit_results, best_fit)
 
