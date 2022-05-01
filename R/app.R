@@ -87,10 +87,15 @@ app <- function(...){
     # render drop down for files that have been uploaded
     # multiple files may be uploaded
     output$file_selector <- renderUI({
-      files <- c(input$file_upload$name)
+
+      req(input$file_upload)
+      files <- list(input$file_upload$datapath)
+      names( files) <- c(input$file_upload$name)
+
       selectInput('file_selector',
                   label = 'Select File (After Upload)',
                   choices = files)
+
     })
 
     # use the file that is selected from the drop down
@@ -103,7 +108,7 @@ app <- function(...){
 
       # readTLSLAS parses into lidR-defined objects, which can be presented in plots
       # see documentation for possible parameters
-      las <- readTLSLAS(input$file_selector, filter="-keep_circle 0 0 15 -thin_with_voxel 0.01")
+      las <- readTLSLAS(input$file_selector, filter="-keep_first -thin_with_voxel 0.01")
 
       ## CLASSIFY GROUND ##
 
