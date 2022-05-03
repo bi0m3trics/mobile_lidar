@@ -47,10 +47,22 @@ app <- function(...){
 
         actionButton("btn_draw_point_cloud", label = "Draw Point Cloud"),
 
+
+        # user inputs for ransac
+        # iterations
+        numericInput("iterations", "Max number of RANSAC iterations", value = 0, min = 0, max = 1000000),
+
+        # threshold
+        numericInput("threshold", "Threshold distance", value = 0, min = 0, max = 100),
+
+        # inclusion
+        numericInput("inclusion", "Desired inclusion percent", value = 0, min = 0, max = 1),
+
         actionButton("btn_ransac", label = "Run Ransac"),
 
         actionButton("btn_draw_slice", label = "Draw Slice and Table"),
 
+        # button to download a csv of the data
         downloadButton("download", "Download .csv")
 
       ),
@@ -77,6 +89,14 @@ app <- function(...){
   )
 
   server <- function(input, output) {
+
+
+    # reactive inputs from user
+
+    iterations <- reactive( input$iterations)
+    threshold <- reactive( input$threshold)
+    inclusion <- reactive( input$inclusion)
+
 
     # render a table showing:
     # file name, size, a type and path
@@ -204,12 +224,13 @@ app <- function(...){
       showModal(modalDialog("Step 3/3: Ransac circle fitting..."))
 
       # call ransac fit function
-      fit_df <<- las_slice_circle_fitting( las_slice, 1000, 0.02, 0.8)
+      fit_df <<- las_slice_circle_fitting( las_slice, iterations, threshold, inclusion)
 
       fit_df
 
       # remove pop up window
       removeModal()
+
     })
 
 
