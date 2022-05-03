@@ -92,10 +92,9 @@ app <- function(...){
 
 
     # reactive inputs from user
-
-    iterations <- reactive( input$iterations)
-    threshold <- reactive( input$threshold)
-    inclusion <- reactive( input$inclusion)
+    # iterations <- reactive( input$iterations)
+    # threshold <- reactive( input$threshold)
+    # inclusion <- reactive( input$inclusion)
 
 
     # render a table showing:
@@ -224,7 +223,7 @@ app <- function(...){
       showModal(modalDialog("Step 3/3: Ransac circle fitting..."))
 
       # call ransac fit function
-      fit_df <<- las_slice_circle_fitting( las_slice, iterations, threshold, inclusion)
+      fit_df <<- las_slice_circle_fitting( las_slice, input$iterations, input$threshold, input$inclusion)
 
       fit_df
 
