@@ -16,16 +16,16 @@ las_slice_circle_fitting(las_slice, iterations, threshold, inclusion)
 \item{inclusion}{the desired inclusion to be considered a good circle fit to the data}
 }
 \description{
-this function takes in a las slice from dbscan that has labled points to tree ids and returns a dataframe
-of tree ids, the x, y, and z corrdiantes for the circle fit on a slice, the radius fo the circle fit, the
+this function takes in a las slice from dbscan that has labeled points to tree ids and returns a data frame
+of tree ids, the x, y, and z coordinates for the circle fit on a slice, the radius fo the circle fit, the
 mean squared error of the points and the percent inclusion of each point within the tree
 }
 \details{
 It preforms ransac circle fitting by:
 \enumerate{
-\item transform the las objest into a matrix
+\item transform the las object into a matrix
 \item loop through the tree ids one at a time
-\item prefrom robust pca using package rospca to find tree slice centers and eigenvectors(loadings)
+\item perform robust pca using package rospca to find tree slice centers and eigenvectors(loadings)
 \item use center and loadings to project the 3d point cloud onto a 2d principal component space
 \item call the rcpp function ransac circle fit to preform circle fitting in parallel with given parameters
 \item return a data frame that contains tree information

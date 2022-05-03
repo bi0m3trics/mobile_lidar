@@ -20,13 +20,10 @@ library(mobileLidar)
 library(microbenchmark)
 
 
-# las <- readTLSLAS("C:/Users/matt/Desktop/DensePatchA.laz")
+las <- readTLSLAS("C:/Users/matt/Desktop/DensePatchA.laz")
 
 # Rudd tank burn only north
-t0 <- Sys.time()
-las <- readTLSLAS("C:/Users/matt/Desktop/Rudd_MLS_GeoSlam_ALSRegistered/Rudd_BO_N_zebcam_ALSregistered.laz", filter = "-keep_first -thin_with_voxel 0.05 -keep_circle 431804.383088774 3899195.49902686 30 (x y radius)")
-Sys.time() - t0
-
+# las <- readTLSLAS("C:/Users/matt/Desktop/Rudd_MLS_GeoSlam_ALSRegistered/Rudd_BO_N_zebcam_ALSregistered.laz", filter = "-keep_first -thin_with_voxel 0.05 -keep_circle 431804.383088774 3899195.49902686 30 (x y radius)")
 
 # rudd tank burn only south east
 # las <- readTLSLAS("C:/Users/matt/Desktop/Rudd_MLS_GeoSlam_ALSRegistered/Rudd_BO_SE_zebcam_ALSregistered.laz", filter = "-keep_first -thin_with_voxel 0.05 -keep_circle 431838.287584286 3899147.61210088 30 (x y radius)")
@@ -152,8 +149,14 @@ rgl.texts( x = fit_df[,1]-offsets[1], y = fit_df[,2]-offsets[2], z = fit_df[,3]+
 
 
 ```{r}
-test_tree = 1
-tree_slice <- filter_poi(las_slice, treeID == test_tree)
+# test_tree = 1
+# tree_slice <- filter_poi(las_slice, treeID == test_tree)
+
+
+fit_df <- individual_tree_ransac( fit_df, 1, las_slice, 1, 0.02, 1)
+
+
+
 plot(tree_slice, color="treeID", axis = T)
 
 # assign all points to a matrix
