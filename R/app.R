@@ -49,7 +49,9 @@ app <- function(...){
 
         actionButton("btn_ransac", label = "Run Ransac"),
 
-        actionButton("btn_draw_slice", label = "Draw Slice and Table")
+        actionButton("btn_draw_slice", label = "Draw Slice and Table"),
+
+        downloadButton("download", "Download .csv")
 
       ),
 
@@ -245,6 +247,21 @@ app <- function(...){
     output$slice <- renderRglwidget({
       slice_reactive()
     })
+
+
+    # save the dataframe as a csv
+    output$download <- downloadHandler(
+      filename = function() {
+        paste("tree fits", ".csv")
+      },
+      content = function(file) {
+        write.csv(fit_df, file)
+      }
+    )
+
+
+
+
   }
 
   shinyApp(ui = ui, server = server)
