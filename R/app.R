@@ -42,6 +42,7 @@ app <- function(...){
                    multiple = TRUE),
 
         uiOutput('file_selector'),
+        numericInput("thin", "Keep fraction of points:", value = 0, min = 0, max = 1),
 
         actionButton("btn_clean_data", label = "Clean Data"),
 
@@ -133,7 +134,8 @@ app <- function(...){
 
       # readTLSLAS parses into lidR-defined objects, which can be presented in plots
       # see documentation for possible parameters
-      las <- readTLSLAS(input$file_selector, filter="-keep_first -thin_with_voxel 0.01")
+      string <- paste0("-keep_first -keep_random_fraction ", input$thin)
+      las <- readTLSLAS(input$file_selector, filter = string)
 
       ## CLASSIFY GROUND ##
 

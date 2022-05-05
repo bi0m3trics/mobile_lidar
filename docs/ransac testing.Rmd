@@ -20,7 +20,9 @@ library(mobileLidar)
 library(microbenchmark)
 
 
-las <- readTLSLAS("C:/Users/matt/Desktop/DensePatchA.laz")
+# las <- readTLSLAS(file.choose())
+
+# las <- readTLSLAS("C:/Users/matt/Desktop/DensePatchA.laz")
 
 # Rudd tank burn only north
 # las <- readTLSLAS("C:/Users/matt/Desktop/Rudd_MLS_GeoSlam_ALSRegistered/Rudd_BO_N_zebcam_ALSregistered.laz", filter = "-keep_first -thin_with_voxel 0.05 -keep_circle 431804.383088774 3899195.49902686 30 (x y radius)")
@@ -28,8 +30,8 @@ las <- readTLSLAS("C:/Users/matt/Desktop/DensePatchA.laz")
 # rudd tank burn only south east
 # las <- readTLSLAS("C:/Users/matt/Desktop/Rudd_MLS_GeoSlam_ALSRegistered/Rudd_BO_SE_zebcam_ALSregistered.laz", filter = "-keep_first -thin_with_voxel 0.05 -keep_circle 431838.287584286 3899147.61210088 30 (x y radius)")
 
-# rudd tank burn only south west
-# las <- readTLSLAS("C:/Users/matt/Desktop/Rudd_MLS_GeoSlam_ALSRegistered/Rudd_BO_SE_zebcam_ALSregistered.laz", filter = "-keep_first -thin_with_voxel 0.05 -keep_circle 431790.667864794 3899145.91081599 (x y radius)")
+# # rudd tank burn only south west
+las <- readTLSLAS("C:/Users/matt/Desktop/Rudd_MLS_GeoSlam_ALSRegistered/Rudd_BO_SW_zebcam_ALSregistered.laz", select = "xyz", filter = "-keep_first -thin_with_voxel 0.05 -keep_circle 431790.667864794 3899145.91081599 30 (x y radius)")
 
 # control north
 # las <- readTLSLAS("C:/Users/matt/Desktop/Rudd_MLS_GeoSlam_ALSRegistered/Rudd_CO_N_zebcam_ALSregistered.laz",
@@ -92,10 +94,6 @@ las <- filter_poi(las, Classification != LASNOISE)
 
 plot(las, axis = T)
 
-
-trunk <- filter_poi(las, Z>=0.0, Z<=5)
-plot(trunk, axis = T)
-
 las_slice <- filter_poi(las, Z>=0.62, Z<=2.12)
 
 eigens <- spanner::eigen_metrics(las_slice, radius = 0.33, ncpu = 8)
@@ -121,17 +119,11 @@ plot(las_slice, color="treeID", axis = T)
 
 
 ```{r}
-t0 <- Sys.time()
-fit_df <- las_slice_circle_fitting( las_slice, 0, 0, 0)
-Sys.time() - t0
+fit_df <- las_slice_circle_fitting( las_slice, 80, 0.05, 0.6)
 ```
 
 
 ```{r}
-
-
-fit_df1 <- fit_df
-
 
 fit_df <- fit_df[fit_df$Radius <= 2, ]
 
