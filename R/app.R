@@ -42,7 +42,7 @@ app <- function(...){
                    multiple = TRUE),
 
         uiOutput('file_selector'),
-        numericInput("thin", "Keep fraction of points:", value = 0, min = 0, max = 1),
+        numericInput("thin", "Keep fraction of points:", value = 1, min = 0, max = 1),
 
         actionButton("btn_clean_data", label = "Clean Data"),
 
