@@ -110,9 +110,9 @@ app <- function(...){
     output$file_selector <- renderUI({
 
       req(input$file_upload)
-      files <- list(input$file_upload$datapath)
-      names( files) <- c(input$file_upload$name)
-
+      files <- list()
+      files <- append( files, input$file_upload$datapath)
+      names(files) <- input$file_upload$name
       selectInput('file_selector',
                   label = 'Select File (After Upload)',
                   choices = files)
