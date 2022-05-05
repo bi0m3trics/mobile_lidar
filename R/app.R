@@ -31,11 +31,11 @@ app <- function(...){
 
     sidebarLayout(
 
-      # start of stuff on sidebar
+      # start of inputs and buttons on sidebar
       sidebarPanel(
 
         # file input
-        # TODO: don't allow wrong file extensions
+        h4("Load a file"),
         fileInput( inputId = "file_upload",
                    label = "Choose .las or .laz file (max file size is 10 GB)",
                    accept = c(".laz", ".laz"),
@@ -48,19 +48,30 @@ app <- function(...){
         actionButton("btn_draw_point_cloud", label = "Draw Point Cloud"),
 
 
+        h4("Slice RANSAC"),
         # user inputs for ransac
         # iterations
         numericInput("iterations", "Max number of RANSAC iterations", value = 0, min = 0, max = 1000000),
-
         # threshold
         numericInput("threshold", "Threshold distance", value = 0, min = 0, max = 100),
-
         # inclusion
         numericInput("inclusion", "Desired inclusion percent", value = 0, min = 0, max = 1),
-
         actionButton("btn_ransac", label = "Run Ransac"),
-
         actionButton("btn_draw_slice", label = "Draw Slice and Table"),
+
+        # h4("Individual tree RANSAC"),
+        # # user inputs for ransac
+        # numericInput("tree_id", "Tree id", value = 0, min = 0, max = 10000),
+        # # iterations
+        # numericInput("tree_iter", "Max number of RANSAC iterations", value = 0, min = 0, max = 1000000),
+        # # threshold
+        # numericInput("tree_t", "Threshold distance", value = 0, min = 0, max = 100),
+        # # inclusion
+        # numericInput("tree_i", "Desired inclusion percent", value = 0, min = 0, max = 1),
+        # # individual tree ransac
+        # actionButton("btn_tree_ransac", label = "Run Tree Ransac"),
+        # # update plot and table
+        # actionButton("btn_draw_slice", label = "Update Slice and Table"),
 
         # button to download a csv of the data
         downloadButton("download", "Download .csv")
@@ -89,13 +100,6 @@ app <- function(...){
   )
 
   server <- function(input, output) {
-
-
-    # reactive inputs from user
-    # iterations <- reactive( input$iterations)
-    # threshold <- reactive( input$threshold)
-    # inclusion <- reactive( input$inclusion)
-
 
     # render a table showing:
     # file name, size, a type and path
@@ -195,7 +199,8 @@ app <- function(...){
     })
 
 
-    ransac_reactive <- eventReactive(input$btn_ransac, {
+    ransac_reactive <- observeEvent(input$btn_ransac, {
+
       # show pop up that data segmenting
       showModal(modalDialog("Step 1/3: Setting up segmentation..."))
 
@@ -235,7 +240,8 @@ app <- function(...){
 
     # render table of data points
     output$slice_table <- renderDataTable({
-      ransac_reactive()
+      req(ransac_reactive)
+      ransac_reactive
     })
 
 
@@ -246,6 +252,10 @@ app <- function(...){
       output$slice_table <- renderDataTable(fit_df)
 
       # plot the slice
+
+      # when lidR/rgl plots a point cloud it shifts the points closer to 0,0 due to accuracy
+      # between floats and doubles. it quietly returns these values which can be captured and
+      # used to add shapes and text to the plot. This is the prupose of offsets
       offsets <- lidR::plot(las_slice, color="treeID", axis = T)
       spheres3d( x = fit_df[,1]-offsets[1], y = fit_df[,2]-offsets[2], z = 1.37, r = fit_df[,3], alpha = .7)
 
@@ -269,6 +279,9 @@ app <- function(...){
     })
 
 
+
+
+
     # save the dataframe as a csv
     output$download <- downloadHandler(
       filename = function() {
@@ -278,6 +291,25 @@ app <- function(...){
         write.csv(fit_df, file)
       }
     )
+
+
+    # # start of individual tree ransac
+    # # non-working and will crash shiny on button press if added back in
+    # ransac_reactive <- observeEvent(input$btn_tree_ransac, {
+    #
+    #   showModal(modalDialog("Refitting tree..."))
+    #   # call ransac fit function
+    #   fit_df <<- individual_tree_ransac( fit_df,
+    #                                       input$tree_id,
+    #                                       las_slice,
+    #                                       input$tree_iter,
+    #                                       input$tree_t,
+    #                                       input$tree_i)
+    #   fit_df
+    #   # remove pop up window
+    #   removeModal()
+    #
+    # })
 
 
 

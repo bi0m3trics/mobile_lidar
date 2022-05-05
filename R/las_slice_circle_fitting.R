@@ -125,7 +125,16 @@ las_slice_circle_fitting <- function( las_slice, iterations, threshold, inclusio
 
     fit_results <- as.data.frame(fit_results)
 
-    fit_results <- fit_results %>% magrittr::set_colnames(c("X_location", "Y_location", "Radius", "Error", "Inclusion %", "Tree_ID", "Lean Angle"))
+    fit_results <- fit_results %>% magrittr::set_colnames(c("X_location", "Y_location", "Radius", "Error", "Inclusion_Percent", "Tree_ID", "Lean_Angle"))
+
+    fit_results$Error <- round( fit_results$Error, digits = 6)
+    fit_results$Radius <- round( fit_results$Radius, digits = 4)
+    fit_results$Inclusion_Percent <- round( fit_results$Inclusion_Percent, digits = 2)
+    fit_results$Lean_Angle <- round( fit_results$Lean_Angle, digits = 2)
+    fit_results$X_location <- round( fit_results$X_location, digits = 8)
+    fit_results$Y_location <- round( fit_results$Y_location, digits = 8)
+    format(fit_results, scientific = FALSE)
+
   }
   return(fit_results)
 }

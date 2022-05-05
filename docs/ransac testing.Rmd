@@ -122,7 +122,7 @@ plot(las_slice, color="treeID", axis = T)
 
 ```{r}
 t0 <- Sys.time()
-fit_df <- las_slice_circle_fitting( las_slice, 100, 0.1, 0.7)
+fit_df <- las_slice_circle_fitting( las_slice, 0, 0, 0)
 Sys.time() - t0
 ```
 
@@ -149,11 +149,15 @@ rgl.texts( x = fit_df[,1]-offsets[1], y = fit_df[,2]-offsets[2], z = fit_df[,3]+
 
 
 ```{r}
-# test_tree = 1
-# tree_slice <- filter_poi(las_slice, treeID == test_tree)
+test_tree = 1
+tree_slice <- filter_poi(las_slice, treeID == test_tree)
 
 
-fit_df <- individual_tree_ransac( fit_df, 1, las_slice, 1, 0.02, 1)
+
+  # call las_slice_circle_fitting on tree slice to get a new fit with given parameters
+  new_fit <- las_slice_circle_fitting( tree_slice, 80, 0.01, 0.6 )
+
+  fit_df <- rbind(fit_df, new_fit)
 
 
 

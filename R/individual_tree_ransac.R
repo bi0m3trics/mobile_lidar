@@ -20,6 +20,8 @@ individual_tree_ransac <- function( data, tree_id, las_slice, iterations, thresh
   # call las_slice_circle_fitting on tree slice to get a new fit with given parameters
   new_fit <- las_slice_circle_fitting( tree_slice, iterations, threshold, inclusion )
 
+  data <<- data[!(data$Tree_ID == tree_id )]
+
   data[data$Tree_ID == tree_id,] <- new_fit
 
   return( data)
